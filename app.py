@@ -6,11 +6,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import relationship
 from flask_login import UserMixin, login_user, LoginManager, login_required, current_user, logout_user, user_unauthorized
-from forms import CreatePostForm, RegisterForm,LoginForm, CommentForm
+from forms import CreatePostForm, RegisterForm,LoginForm, CommentForm,ContectForm
 from flask_gravatar import Gravatar
 from functools import wraps
 from flask import abort
-
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
@@ -43,7 +45,6 @@ def admin_only(f):
         return f(*args, **kwargs)
     return decorated_function
 
-
 ##CONFIGURE TABLES
 class BlogPost(db.Model):
     __tablename__ = "blog_posts"
@@ -57,7 +58,6 @@ class BlogPost(db.Model):
     #Create reference to the User object, the "posts" refers to the posts protperty in the User class.
     author = relationship("User", back_populates="posts")
     comments =  relationship("Comment",back_populates="parent_post")
-
 
 #Create the User Table
 class User(UserMixin, db.Model):
@@ -78,22 +78,18 @@ class Comment(db.Model):
     comment_author =  relationship("User", back_populates="comments")
     parent_post = relationship("BlogPost",back_populates="comments")
 
-
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-
 # Create all the tables in the database
 with app.app_context():
     db.create_all()
-  
     
 @app.route('/')
 def get_all_posts():
     posts = BlogPost.query.all()
     return render_template("index.html", all_posts=posts, current_user=current_user)
-
 
 @app.route('/register', methods=['POST','GET'])
 def register():
@@ -123,7 +119,6 @@ def register():
 
     return render_template("register.html", form=form, current_user=current_user)
 
-
 @app.route('/login', methods=["GET", "POST"])
 def login():
     form = LoginForm()
@@ -141,12 +136,10 @@ def login():
           
     return render_template("login.html", form=form, current_user=current_user)
 
-
 @app.route('/logout')
 def logout():
     logout_user()
     return redirect(url_for('get_all_posts'))
-
 
 @app.route("/post/<int:post_id>", methods=['POST', 'GET'])
 @login_required
@@ -164,18 +157,52 @@ def show_post(post_id):
         # return redirect(url_for('show_post', post_id=post_id))
     return render_template("post.html", post=requested_post, current_user=current_user, form=form)
 
-
 @app.route("/about")
 @login_required
 def about():
     return render_template("about.html", current_user=current_user)
 
-
-@app.route("/contact")
+@app.route("/contact", methods=['POST',"GET"])
 @login_required
 def contact():
-    return render_template("contact.html", current_user=current_user)
+    form = ContectForm()
+    if form.validate_on_submit():
+        name  = form.name.data
+        email = form.email.data
+        phoneNumber = form.phoneNumber.data
+        message = form.message.data
 
+        sender_email = "ompatel5044@gmail.com"
+        sender_password = "wbfgavwrtiksgzlo"
+        receiver_email = "ompatel5044@gmail.com"
+        subject = "news-project-contact"
+        message_body = f"name:{name}\nemail:{email}\nphoneNumber:{phoneNumber}\nmessage:{message}"
+
+        # Create a MIMEText object to represent the message body
+        message = MIMEMultipart()
+        message["From"] = sender_email
+        message["To"] = receiver_email
+        message["Subject"] = subject
+        message.attach(MIMEText(message_body, "plain"))
+
+        # Establish an SMTP connection
+        try:
+            smtp_server = smtplib.SMTP("smtp.gmail.com", 587)
+            smtp_server.starttls()
+            smtp_server.login(sender_email, sender_password)
+
+            # Send the email
+            smtp_server.sendmail(sender_email, receiver_email, message.as_string())
+            print("Email sent successfully!")
+
+        except smtplib.SMTPException as e:
+            print(f"Error: {str(e)}")
+        finally:
+            # Close the SMTP connection
+            smtp_server.quit()
+        return redirect(url_for("contact"))
+
+    return render_template("contact.html", current_user=current_user, form=form)
 
 @app.route("/new-post", methods=['POST',"GET"])
 @login_required
