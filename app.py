@@ -165,43 +165,6 @@ def about():
 @app.route("/contact", methods=['POST',"GET"])
 @login_required
 def contact():
-    form = ContectForm()
-    if form.validate_on_submit():
-        name  = form.name.data
-        email = form.email.data
-        phoneNumber = form.phoneNumber.data
-        message = form.message.data
-
-        sender_email = "ompatel5044@gmail.com"
-        sender_password = "wbfgavwrtiksgzlo"
-        receiver_email = "ompatel5044@gmail.com"
-        subject = "news-project-contact"
-        message_body = f"name:{name}\nemail:{email}\nphoneNumber:{phoneNumber}\nmessage:{message}"
-
-        # Create a MIMEText object to represent the message body
-        message = MIMEMultipart()
-        message["From"] = sender_email
-        message["To"] = receiver_email
-        message["Subject"] = subject
-        message.attach(MIMEText(message_body, "plain"))
-
-        # Establish an SMTP connection
-        try:
-            smtp_server = smtplib.SMTP("smtp.gmail.com", 587)
-            smtp_server.starttls()
-            smtp_server.login(sender_email, sender_password)
-
-            # Send the email
-            smtp_server.sendmail(sender_email, receiver_email, message.as_string())
-            print("Email sent successfully!")
-
-        except smtplib.SMTPException as e:
-            print(f"Error: {str(e)}")
-        finally:
-            # Close the SMTP connection
-            smtp_server.quit()
-        return redirect(url_for("contact"))
-
     return render_template("contact.html", current_user=current_user, form=form)
 
 @app.route("/new-post", methods=['POST',"GET"])
